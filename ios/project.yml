@@ -1,0 +1,50 @@
+# Recipe for the Xcode project. XcodeGen (https://github.com/yonaskolb/XcodeGen) turns this file
+# into Reckoner.xcodeproj; the cloud build runs it, and so can you on a Mac:  xcodegen generate
+name: Reckoner
+
+options:
+  bundleIdPrefix: app.reckoner
+  deploymentTarget:
+    iOS: "15.0"
+  developmentLanguage: en
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Reckoner:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Reckoner/Sources
+      - path: Reckoner/Assets.xcassets
+      # the whole web app travels as one folder inside the app
+      - path: Reckoner/Web
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: Reckoner
+        PRODUCT_BUNDLE_IDENTIFIER: app.reckoner.pocket
+        INFOPLIST_FILE: Reckoner/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_BITCODE: "NO"
+
+schemes:
+  Reckoner:
+    build:
+      targets:
+        Reckoner: all
+    run:
+      config: Debug
+    archive:
+      config: Release

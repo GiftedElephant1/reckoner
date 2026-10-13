@@ -1,0 +1,19 @@
+# made by the build, on your computer or on GitHub's
+ios/Reckoner.xcodeproj/
+ios/build/
+out/
+results/
+
+# local odds and ends
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+node_modules/
+tests/shots/
+tests/sample*.pdf
+tests/monkey-fail-*.png
+
+# only used for the hosted preview
+dist/preview.html
+tests/preview_test.py
