@@ -32,6 +32,8 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
     private var pageShown = false
     private var shownBy = "nothing yet"
     private var loadCount = 0
+    private var loadStarted = Date()
+    private var readyAfter: TimeInterval?
     private var sentInsets: UIEdgeInsets?
 
     private let selfTesting = ProcessInfo.processInfo.arguments.contains("-selftest")
@@ -114,17 +116,36 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
     // MARK: - First appearance
 
     // The page stays out of sight until it has laid itself out with the right margins, and then
-    // fades in over the launch colour. If it never reports that it is ready, it is shown anyway.
+    // fades in over the launch colour. Normally it reports that it is ready while it loads. If it
+    // has loaded without doing so, or will not load at all, it is shown anyway.
 
     private func hidePageUntilReady() {
         loadCount += 1
-        let thisLoad = loadCount
+        loadStarted = Date()
+        readyAfter = nil
         pageShown = false
         webView.alpha = 0
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+        showPageRegardless(after: 12, by: "long wait")
+    }
+
+    private func showPageRegardless(after seconds: TimeInterval, by cause: String) {
+        let thisLoad = loadCount
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
             guard let self = self, self.loadCount == thisLoad else { return }
-            self.showPage(by: "timer")
+            self.showPage(by: cause)
         }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        showPageRegardless(after: 1, by: "loaded without ready")
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        showPage(by: "failed load")
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        showPage(by: "failed load")
     }
 
     private func showPage(by cause: String) {
@@ -201,6 +222,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
         switch type {
         case "ready":
             pageReady = true
+            readyAfter = Date().timeIntervalSince(loadStarted)
             sendInsets(force: true) { [weak self] in
                 self?.showPage(by: "ready")
             }
@@ -375,6 +397,9 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
         var report = result
         report["stateFileBytes"] = store.savedBytes
         report["shownBy"] = shownBy
+        if let seconds = readyAfter {
+            report["readyAfter"] = (seconds * 100).rounded() / 100
+        }
         report["systemVersion"] = UIDevice.current.systemVersion
         report["model"] = UIDevice.current.model
         guard JSONSerialization.isValidJSONObject(report),

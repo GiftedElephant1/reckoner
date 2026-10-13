@@ -51,6 +51,8 @@ def main():
             details.append("saved file %s bytes" % result["stateFileBytes"])
         if result.get("shownBy"):
             details.append("page shown by %s" % result["shownBy"])
+        if result.get("readyAfter") is not None:
+            details.append("ready %s s after the page began to load" % result["readyAfter"])
         print("**%s**: %s" % (label, ", ".join(details) if details else "no details"))
         for failure in (result.get("failures") or [])[:30]:
             print("- FAILED: %s" % str(failure).replace("\n", " "))
