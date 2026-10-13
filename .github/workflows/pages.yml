@@ -1,0 +1,68 @@
+name: Publish the web version
+# Puts the website in dist/ on GitHub Pages, so Reckoner can be opened in any browser
+# and added to a phone's Home Screen. Runs whenever the app or the site changes.
+#
+# Pages has to be switched on once by hand: Settings > Pages > Build and deployment > Source:
+# GitHub Actions. Until then this workflow stops at the Publish step.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/**'
+      - 'dist/**'
+      - 'tools/build.py'
+      - 'tools/make_web_icons.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish dist/ to GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v7
+
+      - name: Assemble the page from src
+        run: |
+          python3 tools/build.py
+          node tests/run-engine.js
+          test -s dist/index.html
+          test -s dist/manifest.webmanifest
+          test -s dist/sw.js
+          test -s dist/icons/apple-touch-icon.png
+          rm -f dist/preview.html
+
+      - name: Set up GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: Say where it is
+        run: |
+          {
+            echo "## The web version is live"
+            echo
+            echo "Open ${{ steps.deployment.outputs.page_url }} on a phone and add it to the Home Screen."
+          } >> "$GITHUB_STEP_SUMMARY"

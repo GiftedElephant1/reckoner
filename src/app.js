@@ -4,11 +4,15 @@
   var E = root.ReckonerEngine, D = root.ReckonerData, PDF = root.ReckonerPDF, U = root.ReckonerUI;
   var h = U.h, icon = U.icon, clear = U.clear, T = E.T;
   var NATIVE = root.__RECKONER_NATIVE__ || null;
+  // the plain web page, served from a website rather than wrapped in the iOS shell or opened as a file
+  var SITE = !NATIVE && /^https?:$/.test(root.location.protocol);
   var STORE_KEY = 'reckoner.state.v1';
+  var HINT_KEY = 'reckoner.hint.install';
   var VERSION = '1.0';
   var doc = root.document;
 
   var state = null, saveTimer = null, hostTheme = null, downloads = null, flashTimer = null;
+  var installPrompt = null;   // the browser's offer to install the page as an app, kept until it is wanted
   var els = {};
   var ui = {
     sheetId: null,
@@ -153,6 +157,49 @@
     return '';
   }
 
+  // ---------------------------------------------------------------- the web page as an app
+
+  /* True when the page has been added to a Home Screen and opened from there. */
+  function standalone() {
+    var nav = root.navigator;
+    return nav.standalone === true || !!(root.matchMedia && root.matchMedia('(display-mode: standalone)').matches);
+  }
+
+  function onIOS() {
+    var nav = root.navigator;
+    return /iPhone|iPad|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
+  }
+
+  /* On a phone, the page is better off on the Home Screen: full screen, its own icon, and it opens
+     without a connection. The hint says how, once, until it is dismissed or no longer applies. */
+  function installHintWanted() {
+    if (!SITE || inViewer() || standalone()) return false;
+    try { if (root.localStorage.getItem(HINT_KEY)) return false; } catch (e) { /* storage may be off */ }
+    return onIOS() || !!installPrompt;
+  }
+
+  function dismissInstallHint() {
+    try { root.localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* then it comes back next time */ }
+    renderHome();
+  }
+
+  function installHint() {
+    var kids = [];
+    if (installPrompt) {
+      kids.push(h('span', { text: 'Install Reckoner as an app: full screen, its own icon, and it works offline.' }));
+      kids.push(h('button.chip', { type: 'button', text: 'Install', onclick: function () {
+        var p = installPrompt;
+        if (!p) return;
+        p.prompt();
+        p.userChoice.then(function () { installPrompt = null; renderHome(); }, function () { /* no answer */ });
+      } }));
+    } else {
+      kids.push(h('span', null, 'Add Reckoner to your Home Screen: tap ', h('b', { text: 'Share' }), ', then ', h('b', { text: 'Add to Home Screen' }), '. It then opens full screen and works offline.'));
+    }
+    kids.push(h('button', { 'aria-label': 'Hide this note', onclick: dismissInstallHint }, icon('close')));
+    return h('div.note.install', { id: 'install-hint' }, kids);
+  }
+
   function renderHome() {
     var path = state.view.path, folderId = currentFolderId();
     var folder = folderId ? E.findItem(state.items, folderId) : null;
@@ -179,6 +226,7 @@
     }
 
     clear(els.homeList);
+    if (!folder && installHintWanted()) els.homeList.appendChild(installHint());
     if (!items.length) {
       els.homeList.appendChild(h('div.empty', null, h('b', { text: folder ? 'This folder is empty' : 'No sheets yet' }),
         'Start one with New sheet. Type a sum once and it stays ready to reuse.'));
@@ -1404,7 +1452,9 @@
           h('button.chip', { type: 'button', text: 'Save', onclick: function () { var js = E.exportBackupFile(state); deliver(fileName('Reckoner backup ' + new Date().toISOString().slice(0, 10), '.json'), 'application/json', js, js); } })),
         h('div.line', null, h('span.lab', null, 'Open a file', h('small', { text: 'A sheet file or a backup. Nothing you have is replaced.' })),
           h('button.chip', { type: 'button', text: 'Open', onclick: pickImport }))),
-      h('p.hint', { text: NATIVE ? 'Sheets are kept on this iPhone and are part of its backups.' : 'Sheets are kept in this browser on this device. Save a backup if they matter.' })));
+      h('p.hint', { text: NATIVE ? 'Sheets are kept on this iPhone and are part of its backups.'
+        : standalone() ? 'Sheets are kept on this device by the app. Save a backup if they matter.'
+        : 'Sheets are kept in this browser on this device. Save a backup if they matter.' })));
 
     body.appendChild(h('div.group', null, h('h3', { text: 'About' }),
       h('div.card', null, h('div.line', null, h('span.lab', null, 'Reckoner ' + VERSION, h('small', { text: 'Free, with nothing locked: no purchases, no sheet limit, no ads, no account.' })))),
@@ -1645,6 +1695,18 @@
     doc.addEventListener('visibilitychange', function () { if (doc.visibilityState === 'hidden') flush(); });
     root.addEventListener('pagehide', flush);
     if (inViewer()) getDownloads();
+    if (SITE && !inViewer()) {
+      // a copy of the page is kept on the device so it opens without a connection
+      if ('serviceWorker' in root.navigator) {
+        try { root.navigator.serviceWorker.register('./sw.js').catch(function () { /* the page still works, online */ }); } catch (e) { /* ignore */ }
+      }
+      root.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        installPrompt = e;
+        if (els.home && !els.home.hidden) renderHome();
+      });
+      root.addEventListener('appinstalled', function () { installPrompt = null; if (els.home && !els.home.hidden) renderHome(); });
+    }
     nativeSend({ type: 'ready', version: VERSION });
   }
 

@@ -12,6 +12,16 @@ name: Build iPhone app
 on:
   push:
     branches: [main, master]
+    # changes to the words or to the website alone do not need a new iPhone build
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'dist/manifest.webmanifest'
+      - 'dist/sw.js'
+      - 'dist/icons/**'
+      - 'tools/make_web_icons.py'
+      - 'tests/site_test.py'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -115,7 +125,7 @@ jobs:
           TAG: build-${{ github.run_number }}
           TITLE: Reckoner, build ${{ github.run_number }}
         run: |
-          NOTES="Download Reckoner.ipa below, then install it on your iPhone with Sideloadly. The README has the steps."
+          NOTES="Download Reckoner.ipa below and install it on your iPhone with Sideloadly; the README has the steps. If you would rather skip that, the README also has the web version, which needs no install."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" out/Reckoner.ipa --clobber
           else
