@@ -1648,6 +1648,17 @@
     nativeSend({ type: 'ready', version: VERSION });
   }
 
+  /* Called by the iOS shell with the room the status bar and the home indicator need, in points.
+     The page could read these from CSS, but the web view only passes them on after the first
+     drawing, which would show for a moment with everything a little too high. */
+  root.reckonerSetInsets = function (top, bottom) {
+    var st = doc.documentElement.style;
+    st.setProperty('--sat', (top > 0 ? +top : 0) + 'px');
+    st.setProperty('--sab', (bottom > 0 ? +bottom : 0) + 'px');
+    if (els.sheet) U.liftToast(toastLift());
+    return true;
+  };
+
   /* Called by the iOS shell when a sheet file is opened with the app. */
   root.reckonerImportFile = function (name, b64) {
     try { U.closeAll(); return importText(b64ToText(b64), true); } catch (e) { toast('That file could not be read.'); return false; }

@@ -27,6 +27,8 @@ with sync_playwright() as p:
     page.goto(URL)
     page.wait_for_selector('#fields .row')
     before = page.evaluate("() => Reckoner.test.snapshot()")
+    # the app tells the page its margins as soon as the page is ready, before the self-test starts
+    page.evaluate("() => window.reckonerSetInsets(59, 34)")
     page.add_script_tag(path=SELFTEST)
     page.wait_for_function("() => !!window.__RECKONER_SELFTEST__")
     out = page.evaluate("() => window.__RECKONER_SELFTEST__")

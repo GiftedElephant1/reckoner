@@ -780,7 +780,7 @@
   function finish() {
     out.info.finished = new Date().toISOString();
     try {
-      if (root.ReckonerUI) root.ReckonerUI.toast('Self-test: ' + out.passed + ' passed, ' + out.failed + ' failed', { ms: 20000 });
+      if (root.ReckonerUI) root.ReckonerUI.toast('Self-test: ' + out.passed + ' passed, ' + out.failed + ' failed', { ms: 8000 });
     } catch (e) { /* the message is only a convenience */ }
     try { root.webkit.messageHandlers.reckoner.postMessage(out); } catch (e2) { /* no app around us */ }
     root.__RECKONER_SELFTEST__ = out;
@@ -797,10 +797,12 @@
     // ------------------------------------------------------------ where are we running
     out.info.userAgent = root.navigator.userAgent;
     out.info.screen = root.innerWidth + ' x ' + root.innerHeight + ' @' + (root.devicePixelRatio || 1);
-    out.info.safeTop = px('env(safe-area-inset-top, 0px)');
-    out.info.safeBottom = px('env(safe-area-inset-bottom, 0px)');
+    // the margins the page is actually using, as told by the app or else read from CSS
+    out.info.safeTop = px('var(--sat)');
+    out.info.safeBottom = px('var(--sab)');
     out.info.dark = !!(root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches);
     out.info.native = !!root.__RECKONER_NATIVE__;
+    if (out.info.native) check(out.info.safeTop >= 20, 'the page leaves room for the status bar', out.info.safeTop + ' at the top');
     out.info.version = R.version;
 
     // ------------------------------------------------------------ the calculation engine

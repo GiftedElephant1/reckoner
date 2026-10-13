@@ -206,13 +206,16 @@ jobs:
                 if [ -n "$DATA" ] && [ -s "$DATA/Documents/selftest.json" ]; then break; fi
                 sleep 2
               done
-              sleep 3
-              xcrun simctl io "$UDID" screenshot "results/${LABEL}-light.png" </dev/null || true
+              sleep 2
+              # first with the self-test's own message on screen, then, once it has gone, the app as it is
+              xcrun simctl io "$UDID" screenshot "results/${LABEL}-selftest.png" </dev/null || true
               if [ -n "$DATA" ] && [ -s "$DATA/Documents/selftest.json" ]; then
                 cp "$DATA/Documents/selftest.json" "results/selftest-${LABEL}.json"
               else
                 echo "The app did not report a result on ${NAME} (iOS ${VERSION})."
               fi
+              sleep 10
+              xcrun simctl io "$UDID" screenshot "results/${LABEL}-light.png" </dev/null || true
               xcrun simctl ui "$UDID" appearance dark </dev/null || true
               sleep 3
               xcrun simctl io "$UDID" screenshot "results/${LABEL}-dark.png" </dev/null || true

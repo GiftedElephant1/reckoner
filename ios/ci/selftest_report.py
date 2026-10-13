@@ -49,6 +49,8 @@ def main():
                 details.append("%s %s" % (title, info[key]))
         if "stateFileBytes" in result:
             details.append("saved file %s bytes" % result["stateFileBytes"])
+        if result.get("shownBy"):
+            details.append("page shown by %s" % result["shownBy"])
         print("**%s**: %s" % (label, ", ".join(details) if details else "no details"))
         for failure in (result.get("failures") or [])[:30]:
             print("- FAILED: %s" % str(failure).replace("\n", " "))

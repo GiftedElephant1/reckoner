@@ -27,10 +27,10 @@ There are three parts. The first takes about ten minutes, most of it waiting.
 4. On your PC, unzip `Reckoner-project.zip` and open the folder. Select everything inside it (Ctrl+A) and drag it all onto the GitHub page.
 5. Click **Commit changes**. The repository's file list should now show `ios`, `src` and the rest at the top level, not one folder that contains them all.
 6. Add the build instructions by hand, because GitHub's uploader leaves out anything whose name starts with a dot. Click **Add file**, then **Create new file**. Type `.github/workflows/build.yml` as the name, paste in the contents of that file from the zip (open it in Notepad), and click **Commit changes**.
-7. Open the **Actions** tab. A run called **Build iPhone app** starts by itself. Click it to watch. It has two jobs: **Build Reckoner.ipa**, which takes about five minutes, and **Try it in the iPhone simulator**, which takes about ten and only checks the result.
+7. Open the **Actions** tab. A run called **Build iPhone app** starts by itself. Click it to watch. It has two jobs: **Build Reckoner.ipa**, which takes about a minute, and **Try it in the iPhone simulator**, which takes a few minutes more and only checks the result. Either can wait in a queue first when GitHub's Macs are busy.
 8. When **Build Reckoner.ipa** has its green tick, go back to the repository's front page and click **Releases** on the right. Under **Assets**, download **Reckoner.ipa**. That file is the app.
 
-Private or public: both work. Builds for a public repository are free without limit. A private repository uses GitHub's free monthly allowance, and Mac builds use it up faster than other kinds; that is still enough for roughly ten builds a month.
+Private or public: both work. Builds for a public repository are free without limit. A private repository uses GitHub's free monthly allowance, and Mac builds use it up about ten times faster than other kinds; a build takes four or five minutes of Mac time, so the allowance is still enough for a few dozen builds a month.
 
 If the Actions tab stays empty, check step 6: the file must be called exactly `.github/workflows/build.yml`, at the top level of the repository.
 

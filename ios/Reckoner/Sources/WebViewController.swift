@@ -29,6 +29,11 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
     private var pageReady = false
     private var pendingImport: (name: String, data: Data)?
 
+    private var pageShown = false
+    private var shownBy = "nothing yet"
+    private var loadCount = 0
+    private var sentInsets: UIEdgeInsets?
+
     private let selfTesting = ProcessInfo.processInfo.arguments.contains("-selftest")
     private var selfTestWritten = false
 
@@ -100,8 +105,62 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
             return
         }
         pageReady = false
+        sentInsets = nil
+        hidePageUntilReady()
         installBootScript()
         webView.loadFileURL(page, allowingReadAccessTo: page.deletingLastPathComponent())
+    }
+
+    // MARK: - First appearance
+
+    // The page stays out of sight until it has laid itself out with the right margins, and then
+    // fades in over the launch colour. If it never reports that it is ready, it is shown anyway.
+
+    private func hidePageUntilReady() {
+        loadCount += 1
+        let thisLoad = loadCount
+        pageShown = false
+        webView.alpha = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            guard let self = self, self.loadCount == thisLoad else { return }
+            self.showPage(by: "timer")
+        }
+    }
+
+    private func showPage(by cause: String) {
+        guard !pageShown else { return }
+        pageShown = true
+        shownBy = cause
+        UIView.animate(withDuration: 0.2, delay: 0.05, options: [.curveEaseOut, .allowUserInteraction], animations: {
+            self.webView.alpha = 1
+        }, completion: nil)
+    }
+
+    /// Tells the page how much room the status bar and the home indicator need. The page could
+    /// read this from CSS, but the web view only passes it on after the first drawing, which
+    /// would show for a moment with everything a little too high.
+    private func sendInsets(force: Bool = false, then done: (() -> Void)? = nil) {
+        guard pageReady, isViewLoaded, bottomConstraint != nil else {
+            done?()
+            return
+        }
+        var insets = view.safeAreaInsets
+        // the constant is minus the keyboard's height; above the keyboard there is no home indicator
+        insets.bottom = max(0, insets.bottom + bottomConstraint.constant)
+        if !force, let sent = sentInsets, sent.top == insets.top, sent.bottom == insets.bottom {
+            done?()
+            return
+        }
+        sentInsets = insets
+        let script = "window.reckonerSetInsets && window.reckonerSetInsets(\(Double(insets.top)), \(Double(insets.bottom))); true;"
+        webView.evaluateJavaScript(script) { _, _ in
+            done?()
+        }
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        sendInsets()
     }
 
     /// Hands the saved sheets to the page before any of its own code runs.
@@ -142,6 +201,9 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
         switch type {
         case "ready":
             pageReady = true
+            sendInsets(force: true) { [weak self] in
+                self?.showPage(by: "ready")
+            }
             deliverPendingImport()
             if selfTesting { runSelfTest() }
         case "save":
@@ -272,6 +334,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
         bottomConstraint.constant = -height
         view.layoutIfNeeded()
         webView.scrollView.contentOffset = CGPoint.zero
+        sendInsets()
     }
 
     // MARK: - Web view housekeeping
@@ -311,6 +374,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKNavig
         guard selfTesting else { return }
         var report = result
         report["stateFileBytes"] = store.savedBytes
+        report["shownBy"] = shownBy
         report["systemVersion"] = UIDevice.current.systemVersion
         report["model"] = UIDevice.current.model
         guard JSONSerialization.isValidJSONObject(report),

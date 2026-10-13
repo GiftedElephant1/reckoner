@@ -855,6 +855,35 @@ def run():
         box = p4.locator('#app').bounding_box()
         check(380 < box['width'] < 460 and box['x'] > 300, 'on a wide window the app stays phone-sized and centred', box)
         ctx4.close()
+
+        # ---------------------------------------------------------------- margins handed over by the iPhone app
+        ctx5 = browser.new_context(viewport={'width': 393, 'height': 852}, device_scale_factor=2, is_mobile=True, has_touch=True, locale='en-US')
+        p5 = ctx5.new_page()
+        a5 = App(p5)
+        p5.goto(URL)
+        p5.wait_for_selector('#fields .row')
+        measure = """() => {
+          const r = s => document.querySelector(s).getBoundingClientRect();
+          const keys = Array.from(document.querySelectorAll('#pad [data-k]')).map(k => k.getBoundingClientRect().bottom);
+          return { back: r('#sheet .top button').top, lastKey: Math.max.apply(null, keys), pad: r('#pad').bottom, list: r('#fields').height };
+        }"""
+        plain = p5.evaluate(measure)
+        check(p5.evaluate("() => window.reckonerSetInsets(59, 34)") is True, 'the app can hand its margins to the page')
+        inset = p5.evaluate(measure)
+        check(inset['back'] >= 59, 'the top bar starts below the status bar', inset)
+        check(abs(inset['back'] - plain['back'] - 59) < 1, 'and moves down by exactly that margin', (plain, inset))
+        check(inset['lastKey'] <= 852 - 34 + 0.5, 'the keys stay clear of the home indicator', inset)
+        check(inset['pad'] <= 852 + 0.5, 'the keypad still ends at the bottom of the screen', inset)
+        check(inset['list'] >= 3 * 57, 'at least three rows stay in view', inset)
+        a5.keys('12+')
+        a5.shot('42-with-margins')
+        p5.evaluate("() => window.reckonerSetInsets(59, 0)")
+        typing = p5.evaluate(measure)
+        check(typing['lastKey'] > inset['lastKey'] + 30, 'with the keyboard up the bottom margin is given back', (inset, typing))
+        p5.evaluate("() => window.reckonerSetInsets(-5, 'x')")
+        check(abs(p5.evaluate(measure)['back'] - plain['back']) < 1, 'nonsense margins count as none')
+        check(a5.errors == [], 'no errors while the margins change', a5.errors)
+        ctx5.close()
         browser.close()
 
 
